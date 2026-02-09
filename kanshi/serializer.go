@@ -9,6 +9,12 @@ import (
 func Serialize(config *Config) string {
 	var sb strings.Builder
 
+	// Write preamble (top-level comments, includes, etc.)
+	if config.Preamble != "" {
+		sb.WriteString(config.Preamble)
+		sb.WriteString("\n\n")
+	}
+
 	for i, profile := range config.Profiles {
 		if i > 0 {
 			sb.WriteString("\n")
@@ -22,6 +28,11 @@ func Serialize(config *Config) string {
 
 		for _, output := range profile.Outputs {
 			serializeOutput(&sb, &output)
+		}
+
+		// Write extra lines (exec directives, comments, etc.)
+		for _, line := range profile.ExtraLines {
+			fmt.Fprintf(&sb, "  %s\n", line)
 		}
 
 		sb.WriteString("}\n")

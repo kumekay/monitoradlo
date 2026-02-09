@@ -2,11 +2,13 @@
 
 export interface Config {
   profiles: Profile[];
+  preamble?: string;
 }
 
 export interface Profile {
   name: string;
   outputs: Output[];
+  extraLines?: string[];
 }
 
 export interface Output {

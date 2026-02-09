@@ -59,6 +59,7 @@ export namespace kanshi {
 	export class Profile {
 	    name: string;
 	    outputs: Output[];
+	    extraLines?: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Profile(source);
@@ -68,6 +69,7 @@ export namespace kanshi {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
 	        this.outputs = this.convertValues(source["outputs"], Output);
+	        this.extraLines = source["extraLines"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -90,6 +92,7 @@ export namespace kanshi {
 	}
 	export class Config {
 	    profiles: Profile[];
+	    preamble?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -98,6 +101,7 @@ export namespace kanshi {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.profiles = this.convertValues(source["profiles"], Profile);
+	        this.preamble = source["preamble"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

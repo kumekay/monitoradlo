@@ -10,12 +10,16 @@ import (
 // Config represents a complete kanshi configuration file.
 type Config struct {
 	Profiles []Profile `json:"profiles"`
+	// Preamble holds top-level content before the first profile (comments, includes, etc.)
+	Preamble string `json:"preamble,omitempty"`
 }
 
 // Profile represents a kanshi profile with a name and list of outputs.
 type Profile struct {
 	Name    string   `json:"name"`
 	Outputs []Output `json:"outputs"`
+	// ExtraLines holds non-output directives within the profile (exec, comments, etc.)
+	ExtraLines []string `json:"extraLines,omitempty"`
 }
 
 // Output represents a single output entry within a kanshi profile.
@@ -40,15 +44,34 @@ func Parse(input string) (*Config, error) {
 	p := &parser{input: input, pos: 0}
 	config := &Config{}
 
+	// Capture preamble: everything before the first "profile" keyword
+	var preambleLines []string
+	foundFirstProfile := false
+
 	for p.pos < len(p.input) {
-		p.skipWhitespaceAndComments()
+		p.skipWhitespace()
 		if p.pos >= len(p.input) {
 			break
+		}
+
+		// Remember position before reading
+		lineStart := p.pos
+
+		// Handle comments
+		if p.input[p.pos] == '#' {
+			commentStart := p.pos
+			p.skipUntilNewline()
+			comment := p.input[commentStart:p.pos]
+			if !foundFirstProfile {
+				preambleLines = append(preambleLines, comment)
+			}
+			continue
 		}
 
 		word := p.readWord()
 		switch word {
 		case "profile":
+			foundFirstProfile = true
 			profile, err := p.parseProfile()
 			if err != nil {
 				return nil, err
@@ -57,9 +80,17 @@ func Parse(input string) (*Config, error) {
 		case "":
 			// skip
 		default:
-			// Skip unknown top-level directives (include, output defaults, etc.)
+			// Capture full line for unknown top-level directives (include, output defaults, etc.)
 			p.skipUntilNewline()
+			line := p.input[lineStart:p.pos]
+			if !foundFirstProfile {
+				preambleLines = append(preambleLines, line)
+			}
 		}
+	}
+
+	if len(preambleLines) > 0 {
+		config.Preamble = strings.Join(preambleLines, "\n")
 	}
 
 	return config, nil
@@ -87,13 +118,21 @@ func (p *parser) parseProfile() (Profile, error) {
 	p.pos++ // skip '{'
 
 	for p.pos < len(p.input) {
-		p.skipWhitespaceAndComments()
+		p.skipWhitespace()
 		if p.pos >= len(p.input) {
 			return profile, fmt.Errorf("unexpected end of input in profile")
 		}
 		if p.input[p.pos] == '}' {
 			p.pos++
 			break
+		}
+
+		// Capture comments within profile blocks
+		if p.input[p.pos] == '#' {
+			commentStart := p.pos
+			p.skipUntilNewline()
+			profile.ExtraLines = append(profile.ExtraLines, p.input[commentStart:p.pos])
+			continue
 		}
 
 		word := p.readWord()
@@ -105,9 +144,18 @@ func (p *parser) parseProfile() (Profile, error) {
 			}
 			profile.Outputs = append(profile.Outputs, output)
 		case "exec":
+			// Capture the full exec line
+			p.skipWhitespace() // skip space between "exec" and the command
+			lineStart := p.pos
 			p.skipUntilNewline()
+			profile.ExtraLines = append(profile.ExtraLines, "exec "+p.input[lineStart:p.pos])
 		default:
+			// Capture unknown directives verbatim
+			lineStart := p.pos
 			p.skipUntilNewline()
+			if word != "" {
+				profile.ExtraLines = append(profile.ExtraLines, word+p.input[lineStart:p.pos])
+			}
 		}
 	}
 

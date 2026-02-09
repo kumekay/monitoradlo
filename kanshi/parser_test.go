@@ -2,6 +2,7 @@ package kanshi
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -56,6 +57,11 @@ profile "Legion Go Kitchen" {
 
 	if len(config.Profiles) != 3 {
 		t.Fatalf("expected 3 profiles, got %d", len(config.Profiles))
+	}
+
+	// Preamble should capture the top-level comment
+	if config.Preamble != "# ThinkPad T14" {
+		t.Errorf("expected preamble '# ThinkPad T14', got %q", config.Preamble)
 	}
 
 	// Profile "Home"
@@ -192,5 +198,103 @@ func TestParseActualFile(t *testing.T) {
 	t.Logf("Parsed %d profiles from %s", len(config.Profiles), path)
 	for _, p := range config.Profiles {
 		t.Logf("  Profile %q: %d outputs", p.Name, len(p.Outputs))
+	}
+}
+
+func TestPreserveExecAndComments(t *testing.T) {
+	input := `# Global comment
+include /etc/kanshi/base
+
+profile "WithExec" {
+  # Set wallpaper for this profile
+  output "Monitor A 1234" {
+    enable
+    position 0,0
+  }
+
+  exec swaybg -i ~/wallpapers/home.jpg
+  exec notify-send "Profile activated"
+}
+
+profile "Simple" {
+  output "Monitor B 5678" {
+    position 0,0
+  }
+}
+`
+	config, err := Parse(input)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(config.Profiles) != 2 {
+		t.Fatalf("expected 2 profiles, got %d", len(config.Profiles))
+	}
+
+	// Check preamble preserves top-level content
+	if config.Preamble == "" {
+		t.Error("expected non-empty preamble")
+	}
+	if !strings.Contains(config.Preamble, "# Global comment") {
+		t.Errorf("preamble should contain global comment, got %q", config.Preamble)
+	}
+	if !strings.Contains(config.Preamble, "include /etc/kanshi/base") {
+		t.Errorf("preamble should contain include directive, got %q", config.Preamble)
+	}
+
+	// Check profile extra lines
+	p := config.Profiles[0]
+	if p.Name != "WithExec" {
+		t.Errorf("expected profile name 'WithExec', got %q", p.Name)
+	}
+	if len(p.Outputs) != 1 {
+		t.Fatalf("expected 1 output, got %d", len(p.Outputs))
+	}
+	if len(p.ExtraLines) != 3 {
+		t.Fatalf("expected 3 extra lines (1 comment + 2 exec), got %d: %v", len(p.ExtraLines), p.ExtraLines)
+	}
+
+	// Verify exec directives are captured
+	foundExecSwaybg := false
+	foundExecNotify := false
+	foundComment := false
+	for _, line := range p.ExtraLines {
+		if strings.Contains(line, "swaybg") {
+			foundExecSwaybg = true
+		}
+		if strings.Contains(line, "notify-send") {
+			foundExecNotify = true
+		}
+		if strings.HasPrefix(line, "#") {
+			foundComment = true
+		}
+	}
+	if !foundExecSwaybg {
+		t.Error("expected swaybg exec line to be preserved")
+	}
+	if !foundExecNotify {
+		t.Error("expected notify-send exec line to be preserved")
+	}
+	if !foundComment {
+		t.Error("expected comment inside profile to be preserved")
+	}
+
+	// Round-trip: serialize and re-parse
+	serialized := Serialize(config)
+	config2, err := Parse(serialized)
+	if err != nil {
+		t.Fatalf("Re-parse failed: %v", err)
+	}
+
+	if len(config2.Profiles) != 2 {
+		t.Fatalf("round-trip: expected 2 profiles, got %d", len(config2.Profiles))
+	}
+
+	p2 := config2.Profiles[0]
+	if len(p2.ExtraLines) != 3 {
+		t.Errorf("round-trip: expected 3 extra lines, got %d: %v", len(p2.ExtraLines), p2.ExtraLines)
+	}
+	if config2.Preamble == "" {
+		t.Error("round-trip: expected non-empty preamble")
 	}
 }

@@ -3,9 +3,9 @@
   import Canvas from './lib/Canvas.svelte';
   import ProfileBar from './lib/ProfileBar.svelte';
   import Properties from './lib/Properties.svelte';
-  import { config, niriOutputs, selectedProfileIndex } from './lib/stores';
+  import { config, niriOutputs, selectedProfileIndex, hasChanges } from './lib/stores';
   import type { Config, NiriOutput } from './lib/types';
-  import { LoadConfig, DetectOutputs } from '../wailsjs/go/main/App';
+  import { LoadConfig, DetectOutputs, SaveConfig, ReloadKanshi } from '../wailsjs/go/main/App';
 
   // Find the profile that best matches the currently connected outputs.
   // A profile matches if all its output criteria appear in the niri descriptions.
@@ -24,6 +24,33 @@
       }
     }
     return bestIdx;
+  }
+
+  async function save() {
+    try {
+      await SaveConfig($config as any);
+      await ReloadKanshi();
+      hasChanges.set(false);
+    } catch (e: any) {
+      alert('Save failed: ' + (e?.message ?? e));
+    }
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      if ($hasChanges) {
+        save();
+      }
+    }
+  }
+
+  function handleBeforeUnload(e: BeforeUnloadEvent) {
+    if ($hasChanges) {
+      e.preventDefault();
+      // Modern browsers show a generic message; returnValue is for legacy support
+      e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+    }
   }
 
   onMount(async () => {
@@ -54,6 +81,8 @@
     }
   });
 </script>
+
+<svelte:window on:keydown={handleKeydown} on:beforeunload={handleBeforeUnload} />
 
 <main>
   <ProfileBar />

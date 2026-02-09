@@ -28,7 +28,13 @@ func (a *App) startup(ctx context.Context) {
 
 // configPath returns the path to the kanshi config file.
 func configPath() string {
-	home, _ := os.UserHomeDir()
+	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+		return filepath.Join(xdg, "kanshi", "config")
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = os.Getenv("HOME")
+	}
 	return filepath.Join(home, ".config", "kanshi", "config")
 }
 
@@ -46,9 +52,20 @@ func (a *App) LoadConfig() (*kanshi.Config, error) {
 }
 
 // SaveConfig serializes and writes the kanshi config file.
+// Creates a .bak backup of the existing file before overwriting.
 func (a *App) SaveConfig(config *kanshi.Config) error {
+	path := configPath()
 	data := kanshi.Serialize(config)
-	err := os.WriteFile(configPath(), []byte(data), 0644)
+
+	// Backup existing file before overwriting
+	if existing, err := os.ReadFile(path); err == nil {
+		bakPath := path + ".bak"
+		if err := os.WriteFile(bakPath, existing, 0644); err != nil {
+			return fmt.Errorf("creating backup: %w", err)
+		}
+	}
+
+	err := os.WriteFile(path, []byte(data), 0644)
 	if err != nil {
 		return fmt.Errorf("writing kanshi config: %w", err)
 	}
