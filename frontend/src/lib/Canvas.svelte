@@ -3,7 +3,6 @@
   import type { MonitorRect, SnapLine } from './types';
 
   const SNAP_THRESHOLD = 12;
-  const PADDING = 40;
   const COLORS = ['#5b8def', '#e5574f', '#47b86b', '#f5a623', '#9b59b6', '#1abc9c', '#e67e22', '#3498db'];
 
   let svgEl: SVGSVGElement;
@@ -12,9 +11,25 @@
   let dragOffsetX = 0;
   let dragOffsetY = 0;
   let activeSnapLines: SnapLine[] = [];
+  let frozenViewBox: string | null = null;
 
-  // Compute the view transform to fit all monitors
-  $: viewBox = computeViewBox($monitorRects);
+  // Compute the view transform to fit all monitors, but freeze during drag
+  $: computedViewBox = computeViewBox($monitorRects);
+  $: viewBox = frozenViewBox ?? computedViewBox;
+
+  // Scale factor for strokes, markers etc. based on total canvas extent
+  $: canvasExtent = (() => {
+    if ($monitorRects.length === 0) return 1920;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const r of $monitorRects) {
+      minX = Math.min(minX, r.x);
+      maxX = Math.max(maxX, r.x + r.width);
+      minY = Math.min(minY, r.y);
+      maxY = Math.max(maxY, r.y + r.height);
+    }
+    return Math.max(maxX - minX, maxY - minY);
+  })();
+  $: sw = canvasExtent * 0.002; // stroke width
 
   function computeViewBox(rects: MonitorRect[]): string {
     if (rects.length === 0) return '0 0 1920 1080';
@@ -29,7 +44,8 @@
 
     const w = maxX - minX;
     const h = maxY - minY;
-    return `${minX - PADDING} ${minY - PADDING} ${w + PADDING * 2} ${h + PADDING * 2}`;
+    const padding = Math.max(w, h) * 0.05;
+    return `${minX - padding} ${minY - padding} ${w + padding * 2} ${h + padding * 2}`;
   }
 
   function isEnabled(rect: MonitorRect): boolean {
@@ -41,6 +57,7 @@
     selectedOutputIndex.set(index);
     dragging = true;
     dragIndex = index;
+    frozenViewBox = computedViewBox;
 
     const pt = svgPoint(e);
     const rect = $monitorRects[index];
@@ -69,6 +86,7 @@
     dragging = false;
     dragIndex = -1;
     activeSnapLines = [];
+    frozenViewBox = null;
   }
 
   function svgPoint(e: MouseEvent): { x: number; y: number } {
@@ -184,8 +202,8 @@
     class:dragging
   >
     <!-- Grid origin marker -->
-    <line x1="-20" y1="0" x2="20" y2="0" stroke="#555" stroke-width="1" stroke-dasharray="4" />
-    <line x1="0" y1="-20" x2="0" y2="20" stroke="#555" stroke-width="1" stroke-dasharray="4" />
+    <line x1={-canvasExtent*0.01} y1="0" x2={canvasExtent*0.01} y2="0" stroke="#555" stroke-width={sw} stroke-dasharray={sw*4} />
+    <line x1="0" y1={-canvasExtent*0.01} x2="0" y2={canvasExtent*0.01} stroke="#555" stroke-width={sw} stroke-dasharray={sw*4} />
 
     <!-- Monitor rectangles -->
     {#each $monitorRects as rect, i}
@@ -204,30 +222,30 @@
           height={rect.height}
           fill={isEnabled(rect) ? COLORS[i % COLORS.length] + '30' : '#33333330'}
           stroke={$selectedOutputIndex === i ? '#fff' : COLORS[i % COLORS.length]}
-          stroke-width={$selectedOutputIndex === i ? 3 : 2}
-          rx="4"
+          stroke-width={$selectedOutputIndex === i ? sw * 2 : sw}
+          rx={sw * 2}
         />
         {#if !isEnabled(rect)}
           <!-- Diagonal hatch for disabled -->
           <line
             x1={rect.x} y1={rect.y}
             x2={rect.x + rect.width} y2={rect.y + rect.height}
-            stroke="#666" stroke-width="1" stroke-dasharray="8"
+            stroke="#666" stroke-width={sw} stroke-dasharray={sw*8}
           />
           <line
             x1={rect.x + rect.width} y1={rect.y}
             x2={rect.x} y2={rect.y + rect.height}
-            stroke="#666" stroke-width="1" stroke-dasharray="8"
+            stroke="#666" stroke-width={sw} stroke-dasharray={sw*8}
           />
         {/if}
-        <!-- Connector name -->
+        <!-- Connector/name -->
         <text
           x={rect.x + rect.width / 2}
-          y={rect.y + rect.height / 2 - 10}
+          y={rect.y + rect.height / 2 - Math.min(rect.width, rect.height) * 0.04}
           text-anchor="middle"
           dominant-baseline="middle"
           fill={isEnabled(rect) ? '#eee' : '#888'}
-          font-size="20"
+          font-size={Math.min(rect.width, rect.height) * 0.07}
           font-weight="bold"
           pointer-events="none"
         >
@@ -236,11 +254,11 @@
         <!-- Resolution -->
         <text
           x={rect.x + rect.width / 2}
-          y={rect.y + rect.height / 2 + 14}
+          y={rect.y + rect.height / 2 + Math.min(rect.width, rect.height) * 0.05}
           text-anchor="middle"
           dominant-baseline="middle"
           fill={isEnabled(rect) ? '#ccc' : '#666'}
-          font-size="14"
+          font-size={Math.min(rect.width, rect.height) * 0.05}
           pointer-events="none"
         >
           {rect.width}x{rect.height}
@@ -254,13 +272,13 @@
         <line
           x1={line.position} y1={line.start}
           x2={line.position} y2={line.end}
-          stroke="#f5a623" stroke-width="1" stroke-dasharray="4"
+          stroke="#f5a623" stroke-width={sw} stroke-dasharray={sw*4}
         />
       {:else}
         <line
           x1={line.start} y1={line.position}
           x2={line.end} y2={line.position}
-          stroke="#f5a623" stroke-width="1" stroke-dasharray="4"
+          stroke="#f5a623" stroke-width={sw} stroke-dasharray={sw*4}
         />
       {/if}
     {/each}

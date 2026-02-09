@@ -1,11 +1,7 @@
 <script lang="ts">
   import { config, selectedProfileIndex, hasChanges, niriOutputs } from './stores';
   import type { Profile } from './types';
-
-  // Wails runtime bindings
-  declare function go_SaveConfig(config: any): Promise<void>;
-  declare function go_ReloadKanshi(): Promise<void>;
-  declare function go_DetectOutputs(): Promise<any[]>;
+  import { SaveConfig, ReloadKanshi } from '../../wailsjs/go/main/App';
 
   let renaming = false;
   let renameValue = '';
@@ -70,13 +66,11 @@
 
   async function save() {
     try {
-      // @ts-ignore - Wails runtime
-      await window.go.main.App.SaveConfig($config);
-      // @ts-ignore
-      await window.go.main.App.ReloadKanshi();
+      await SaveConfig($config as any);
+      await ReloadKanshi();
       hasChanges.set(false);
     } catch (e: any) {
-      alert('Save failed: ' + e.message);
+      alert('Save failed: ' + (e?.message ?? e));
     }
   }
 
@@ -154,6 +148,11 @@
     border-radius: 4px;
     font-size: 14px;
     min-width: 150px;
+  }
+
+  .profile-select option {
+    background: #1a1a2e;
+    color: #eee;
   }
 
   .rename-input {

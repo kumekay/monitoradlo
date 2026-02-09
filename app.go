@@ -63,9 +63,21 @@ func (a *App) DetectOutputs() ([]niri.Output, error) {
 // ApplyPreview applies temporary output settings via niri msg.
 func (a *App) ApplyPreview(connector string, props map[string]string) error {
 	for action, value := range props {
-		args := []string{"msg", "output", connector, action}
-		if value != "" {
+		var args []string
+		switch action {
+		case "position":
+			// niri msg output <NAME> position set <X> <Y>
+			args = []string{"msg", "output", connector, "position", "set"}
 			args = append(args, strings.Fields(value)...)
+		case "on", "off":
+			// niri msg output <NAME> on/off
+			args = []string{"msg", "output", connector, action}
+		default:
+			// mode, scale, transform: niri msg output <NAME> <action> <value>
+			args = []string{"msg", "output", connector, action}
+			if value != "" {
+				args = append(args, strings.Fields(value)...)
+			}
 		}
 		cmd := exec.Command("niri", args...)
 		if out, err := cmd.CombinedOutput(); err != nil {

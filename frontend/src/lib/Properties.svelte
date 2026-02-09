@@ -9,6 +9,7 @@
     updateOutputPosition,
   } from './stores';
   import type { NiriOutput } from './types';
+  import { ApplyPreview } from '../../wailsjs/go/main/App';
 
   $: rect = $selectedOutputIndex >= 0 ? $monitorRects[$selectedOutputIndex] : null;
   $: output = $selectedOutput;
@@ -76,10 +77,9 @@
     }
 
     try {
-      // @ts-ignore
-      await window.go.main.App.ApplyPreview(niri.connector, props);
+      await ApplyPreview(niri.connector, props);
     } catch (e: any) {
-      alert('Preview failed: ' + e.message);
+      alert('Preview failed: ' + (e?.message ?? e));
     }
   }
 </script>
@@ -238,6 +238,11 @@
     padding: 3px 6px;
     border-radius: 3px;
     font-size: 13px;
+  }
+
+  .field select option {
+    background: #1a1a2e;
+    color: #eee;
   }
 
   .field input[type="number"] {

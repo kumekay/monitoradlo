@@ -55,10 +55,10 @@ monitoradlo/
 sudo pacman -S webkit2gtk-4.1
 
 # Dev mode with hot reload
-wails dev
+wails dev -tags webkit2_41
 
 # Build single binary
-wails build
+wails build -tags webkit2_41
 ```
 
 ## Testing

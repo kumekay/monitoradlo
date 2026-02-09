@@ -72,7 +72,7 @@ export const monitorRects = derived(
 
       return {
         output,
-        connector: niriMatch?.connector ?? output.criteria.split(' ').pop() ?? '?',
+        connector: niriMatch?.connector ?? output.criteria,
         x: output.position?.x ?? 0,
         y: output.position?.y ?? 0,
         width,
