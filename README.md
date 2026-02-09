@@ -18,6 +18,13 @@ git clone https://github.com/kumekay/monitoradlo.git
 cd monitoradlo
 wails build -tags webkit2_41
 cp build/bin/monitoradlo ~/.local/bin/
+cp monitoradlo.desktop ~/.local/share/applications/
+```
+
+**Note:** The desktop entry assumes `monitoradlo` is in your PATH. If your shell doesn't include `~/.local/bin/` in PATH by default, add this to your shell config (e.g., `~/.zshrc`, `~/.bashrc`):
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
 ### Runtime requirements

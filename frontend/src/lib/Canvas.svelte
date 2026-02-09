@@ -187,7 +187,7 @@
       }
     }
 
-    return { x, y, snapLines: lines };
+    return { x: Math.round(x), y: Math.round(y), snapLines: lines };
   }
 </script>
 

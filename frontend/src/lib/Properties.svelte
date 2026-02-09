@@ -69,7 +69,7 @@
         props['scale'] = String(output.scale);
       }
       if (output.position) {
-        props['position'] = `${output.position.x} ${output.position.y}`;
+        props['position'] = `${Math.round(output.position.x)} ${Math.round(output.position.y)}`;
       }
       if (output.transform) {
         props['transform'] = output.transform;

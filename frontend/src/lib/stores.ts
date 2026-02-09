@@ -100,7 +100,7 @@ export function updateOutputPosition(profileIdx: number, outputIdx: number, x: n
   config.update(c => {
     const profile = c.profiles[profileIdx];
     if (profile && profile.outputs[outputIdx]) {
-      profile.outputs[outputIdx].position = { x, y };
+      profile.outputs[outputIdx].position = { x: Math.round(x), y: Math.round(y) };
     }
     return c;
   });

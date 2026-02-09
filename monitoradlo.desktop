@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Monitoradlo
+Comment=Edit Kanshi monitor layout profiles with live preview via Niri
+Exec=monitoradlo
+Type=Application
+Categories=Settings;HardwareSettings;
+Keywords=monitor;display;kanshi;niri;layout;
