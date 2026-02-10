@@ -79,16 +79,31 @@ func (a *App) DetectOutputs() ([]niri.Output, error) {
 
 // ApplyPreview applies temporary output settings via niri msg.
 func (a *App) ApplyPreview(connector string, props map[string]string) error {
-	for action, value := range props {
+	// Apply in a deterministic order to avoid transform/position races.
+	// If turning off, just do that and return.
+	if _, ok := props["off"]; ok {
+		cmd := exec.Command("niri", "msg", "output", connector, "off")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("niri msg output %s off: %s: %w", connector, string(out), err)
+		}
+		return nil
+	}
+
+	order := []string{"on", "mode", "scale", "transform", "position", "vrr"}
+	for _, action := range order {
+		value, ok := props[action]
+		if !ok {
+			continue
+		}
 		var args []string
 		switch action {
 		case "position":
 			// niri msg output <NAME> position set <X> <Y>
-			args = []string{"msg", "output", connector, "position", "set"}
+			args = []string{"msg", "output", connector, "position", "set", "--"}
 			args = append(args, strings.Fields(value)...)
-		case "on", "off":
-			// niri msg output <NAME> on/off
-			args = []string{"msg", "output", connector, action}
+		case "on":
+			// niri msg output <NAME> on
+			args = []string{"msg", "output", connector, "on"}
 		default:
 			// mode, scale, transform: niri msg output <NAME> <action> <value>
 			args = []string{"msg", "output", connector, action}
