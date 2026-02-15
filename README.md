@@ -4,6 +4,8 @@ A GUI application for editing [Kanshi](https://sr.ht/~emersion/kanshi/) monitor 
 
 Drag monitors on an SVG canvas, edit properties, save to your kanshi config, and preview changes live on your displays — all from a single binary.
 
+![Monitoradlo Screenshot](docs/screenshot.png)
+
 ## Install
 
 ### From source (Arch Linux)
